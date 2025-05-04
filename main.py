@@ -1,0 +1,466 @@
+import telebot
+import random
+import os
+import threading
+from flask import Flask
+from keep_alive import keep_alive
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
+
+user_balances = {}
+user_stats = {}  # Формат: {user_id: {"level": 1, "xp": 0}}
+
+# Ваш токен от BotFather сюда:
+TOKEN = '7128507490:AAEzxEUqg502cm9FjkzPY-PBQXP_rCZbwYA'
+
+bot = telebot.TeleBot(TOKEN)
+server = Flask(__name__)
+
+# Список мемов и фраз кота
+memes = [
+    "Meow! I'm feeling awesome today!", "Who's the best cat? AICAT is!",
+    "Purr... Feed me memes and tokens!",
+    "I hid 10 tokens under your keyboard... just kidding.",
+    "Chase the dream... or the red dot.",
+    "I opened a capsule and found another capsule inside!"
+]
+
+# Состояния настроения
+moods = ["Happy", "Angry", "Sleepy", "Curious", "Hungry"]
+current_mood = {"state": random.choice(moods)}
+
+
+# Получить или создать данные пользователя
+def get_user_stats(user_id):
+    if user_id not in user_stats:
+        user_stats[user_id] = {"level": 1, "xp": 0}
+    return user_stats[user_id]
+
+
+# Добавить опыт и проверить повышение уровня
+def add_experience(user_id, amount):
+    stats = get_user_stats(user_id)
+    stats["xp"] += amount
+    level_up_threshold = stats["level"] * 100
+    if stats["xp"] >= level_up_threshold:
+        stats["xp"] -= level_up_threshold
+        stats["level"] += 1
+        return True
+    return False
+
+
+def calculate_reward(base_reward, level):
+    multiplier = 1 + (level * 0.05)
+    return int(base_reward * multiplier)
+
+
+# Команда старт
+from telebot import types
+
+
+@bot.message_handler(commands=['start'])
+def start(message):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    btn1 = types.KeyboardButton('🎁 /capsule')
+    btn2 = types.KeyboardButton('🐾 /pet')
+    btn3 = types.KeyboardButton('😺 /mood')
+    btn4 = types.KeyboardButton('🎤 /meow')
+    btn5 = types.KeyboardButton('💰 /balance')
+    btn6 = types.KeyboardButton('🎯 /bonus')
+    btn7 = types.KeyboardButton('🛍️ /shop')
+    btn8 = types.KeyboardButton('📊 /stats')
+    btn9 = types.KeyboardButton('📆 /daily')
+    btn10 = types.KeyboardButton('ℹ️ /help')
+
+    markup.add(btn1, btn2, btn3, btn4, btn5, btn6, btn7, btn8, btn9, btn10)
+
+    user_id = message.from_user.id
+    bot.send_message(
+        message.chat.id,
+        "Meow! Welcome to the AICAT world!\n\nHere’s what you can do:\n"
+        "🎁 /capsule – Open a surprise capsule!\n"
+        "🐾 /pet – Pet the cat and earn rewards!\n"
+        "😺 /mood – Check the cat’s mood.\n"
+        "🎤 /meow – Hear what the cat has to say.\n"
+        "💰 /balance – Check your token balance.\n"
+        "🎯 /bonus – Try to catch a flying token.\n"
+        "🛍️ /shop – Buy items for the cat.\n"
+        "📊 /stats – View your XP and level.\n"
+        "📆 /daily – Claim your daily reward.\n"
+        "ℹ️ /help – Show this help menu anytime.",
+        reply_markup=markup)
+
+
+@bot.message_handler(commands=['help'])
+def help_command(message):
+    help_text = ("Meow! Welcome to the AICAT world!\n\n"
+                 "Here’s what you can do:\n"
+                 "🎁 /capsule – Open a surprise capsule!\n"
+                 "🐾 /pet – Pet the cat and earn rewards!\n"
+                 "😺 /mood – Check the cat’s mood.\n"
+                 "🗯️ /meow – Hear what the cat has to say.\n"
+                 "💰 /balance – Check your token balance.\n"
+                 "🎯 /bonus – Try to catch a flying token.\n"
+                 "🛍️ /shop – Buy items for the cat.\n"
+                 "📊 /stats – View your XP and level.\n"
+                 "📅 /daily – Claim your daily reward!")
+    bot.reply_to(message, help_text)
+
+
+# Команда настроения
+@bot.message_handler(commands=['mood'])
+def mood(message):
+    user_id = message.from_user.id
+    stats = get_user_stats(user_id)
+    add_experience(user_id, 4)  # +4 XP за просмотр настроения
+    mood = current_mood['state']
+
+    text = (f"The cat is currently: {mood}\n"
+            f"Level: {stats['level']} | XP: {stats['xp']}")
+
+    bot.reply_to(message, text)
+
+
+import time
+
+last_daily_claim = {}
+
+
+@bot.message_handler(commands=['daily'])
+def daily(message):
+    user_id = message.from_user.id
+    now = time.time()
+    last_claim = last_daily_claim.get(user_id, 0)
+    cooldown = 86400  # 24 часа в секундах
+
+    if now - last_claim >= cooldown:
+        stats = get_user_stats(user_id)
+        leveled_up = add_experience(user_id, 15)
+        reward = calculate_reward(100, stats["level"])
+        user_balances[user_id] = user_balances.get(user_id, 0) + reward
+        last_daily_claim[user_id] = now
+
+        text = f"You claimed your daily reward: +{reward} AICAT tokens!\nLevel: {stats['level']} | XP: {stats['xp']}"
+        if leveled_up:
+            text += "\nMeow! You leveled up!"
+    else:
+        remaining = int(cooldown - (now - last_claim))
+        hours = remaining // 3600
+        minutes = (remaining % 3600) // 60
+        text = f"You already claimed your daily reward. Try again in {hours}h {minutes}m."
+
+    bot.reply_to(message, text)
+
+
+# Команда meow
+@bot.message_handler(commands=['meow'])
+def meow(message):
+    user_id = message.from_user.id
+    stats = get_user_stats(user_id)
+    leveled_up = add_experience(user_id, 3)  # +3 XP за мяуканье
+
+    meme = random.choice(memes)
+    text = f"{meme}\nLevel: {stats['level']} | XP: {stats['xp']}"
+    if leveled_up:
+        text += "\nMeow! You leveled up!"
+
+    bot.reply_to(message, text)
+
+
+# Команда для просмотра баланса
+@bot.message_handler(commands=['balance'])
+def balance(message):
+    user_id = message.from_user.id
+    balance = user_balances.get(user_id, 0)
+    bot.reply_to(message, f"Your current AICAT balance is: {balance} tokens!")
+
+
+# Команда статистики игрока
+@bot.message_handler(commands=['stats'])
+def stats(message):
+    user_id = message.from_user.id
+    stats = get_user_stats(user_id)
+    level = stats['level']
+    xp = stats['xp']
+    xp_to_next = level * 100 - xp
+
+    bot.reply_to(
+        message,
+        f"Your current level: {level}\nXP: {xp} / {level * 100}\nTo next level: {xp_to_next} XP"
+    )
+
+
+# Команда бонус
+@bot.message_handler(commands=['bonus'])
+def bonus(message):
+    user_id = message.from_user.id
+    stats = get_user_stats(user_id)
+    add_experience(user_id, 6)  # +6 XP за бонус
+    bonus_chance = random.randint(1, 100)
+
+    if bonus_chance <= 70:
+        base_reward = random.randint(1, 10)
+        reward = calculate_reward(base_reward, stats["level"])
+        user_balances[user_id] = user_balances.get(user_id, 0) + reward
+        bot.reply_to(
+            message,
+            f"You caught {reward} AICAT tokens! Meow!\nLevel: {stats['level']} | XP: {stats['xp']}"
+        )
+    else:
+        bot.reply_to(
+            message, "Oops! The bonus slipped away... Try again later!\n"
+            f"Level: {stats['level']} | XP: {stats['xp']}")
+
+
+# Команда капсулы
+@bot.message_handler(commands=['capsule'])
+def capsule(message):
+    user_id = message.from_user.id
+    stats = get_user_stats(user_id)
+    leveled_up = add_experience(user_id, 10)  # +10 XP за открытие капсулы
+
+    reward_chance = random.randint(1, 100)
+
+    if user_id not in user_balances:
+        user_balances[user_id] = 0
+
+    if reward_chance <= 65:
+        base_reward = random.randint(1, 50)
+        reward = calculate_reward(base_reward, stats["level"])
+        user_balances[user_id] += reward
+        message_text = f"You opened a capsule and found {reward} AICAT tokens!"
+    elif reward_chance <= 85:
+        message_text = "You opened the capsule... but it was full of air! Better luck next time."
+    elif reward_chance <= 95:
+        message_text = "You opened the capsule and found... a rubber duck. No tokens this time!"
+    else:
+        message_text = "You opened a glowing capsule and heard a mysterious sound... but found nothing."
+
+    text = f"{message_text}\nLevel: {stats['level']} | XP: {stats['xp']}"
+    if leveled_up:
+        text += "\nMeow! You leveled up!"
+
+    bot.reply_to(message, text)
+
+
+# Команда погладить кота
+@bot.message_handler(commands=['pet'])
+def pet(message):
+    user_id = message.from_user.id
+    luck = random.randint(1, 100)
+
+    stats = get_user_stats(user_id)
+    leveled_up = add_experience(user_id, 10)  # +10 XP за поглаживание
+
+    if luck <= 5:
+        reward = calculate_reward(10, stats["level"])
+        user_balances[user_id] += reward
+        bot.reply_to(
+            message,
+            f"Incredible! You received a MEGA blessing: +100 Happiness points and {reward} bonus AICAT tokens!\nLevel: {stats['level']} | XP: {stats['xp']}"
+        )
+    elif luck <= 20:
+        reward = calculate_reward(5, stats["level"])
+        user_balances[user_id] += reward
+        bot.reply_to(
+            message,
+            f"You received a blessing: +50 Happiness points and {reward} bonus AICAT tokens!\nLevel: {stats['level']} | XP: {stats['xp']}"
+        )
+    else:
+        bless = random.choice([
+            "You earned +5 Happiness points!",
+            "You earned +10 Happiness points!",
+            "You earned +15 Happiness points!",
+            "You earned +20 Happiness points!",
+            "You earned +30 Happiness points!",
+        ])
+        text = f"Purr... {bless}\nLevel: {stats['level']} | XP: {stats['xp']}"
+        if leveled_up:
+            text += "\nMeow! You leveled up!"
+        bot.reply_to(message, text)
+
+
+# Команда магазин
+@bot.message_handler(commands=['shop'])
+def shop(message):
+    shop_text = "Welcome to the AICAT Shop! Choose an item to buy:\n\n"
+    items = {
+        1: "Catnip Toy - 50 AICAT",
+        2: "Scratching Post - 100 AICAT",
+        3: "Royal Cat Throne - 500 AICAT",
+        4: "Fish - 50 AICAT",
+        5: "Meat - 100 AICAT",
+        6: "Shrimp - 200 AICAT",
+        7: "Catnip (Valeriana) - 150 AICAT"
+    }
+
+    markup = InlineKeyboardMarkup()
+    for num, label in items.items():
+        shop_text += f"{num}. {label}\n"
+        markup.add(
+            InlineKeyboardButton(text=f"Buy {label.split('-')[0].strip()}",
+                                 callback_data=f"buy_{num}"))
+
+    bot.send_message(message.chat.id, shop_text, reply_markup=markup)
+
+
+# Команда покупки товара
+@bot.message_handler(commands=['buy'])
+def buy(message):
+    user_id = message.from_user.id
+    stats = get_user_stats(user_id)
+    add_experience(user_id, 8)
+    balance = user_balances.get(user_id, 0)
+
+    try:
+        parts = message.text.split()
+        if len(parts) != 2 or not parts[1].isdigit():
+            bot.reply_to(message, "Please use the correct format: /buy 1")
+            return
+        item_number = int(parts[1])
+    except Exception:
+        bot.reply_to(message, "Something went wrong. Try /buy 1")
+        return
+
+    items = {
+        1: ("Catnip Toy", 50),
+        2: ("Scratching Post", 100),
+        3: ("Royal Cat Throne", 500),
+        4: ("Fish", 50),
+        5: ("Meat", 100),
+        6: ("Shrimp", 200),
+        7: ("Catnip (Valeriana)", 150)
+    }
+
+    if item_number not in items:
+        bot.reply_to(
+            message,
+            "Invalid item number. Please choose a valid item from the shop.")
+        return
+
+    item_name, price = items[item_number]
+    if balance >= price:
+        user_balances[user_id] = balance - price
+
+        if item_number == 4:  # Fish
+            reward = calculate_reward(10, stats["level"])
+            user_balances[user_id] += reward
+            message_text = f"You bought {item_name} and gained +{reward} AICAT tokens! New balance: {user_balances[user_id]}"
+
+        elif item_number == 5:  # Meat
+            reward = calculate_reward(20, stats["level"])
+            user_balances[user_id] += reward
+            message_text = f"You bought {item_name} and gained +{reward} AICAT tokens! New balance: {user_balances[user_id]}"
+
+        elif item_number == 6:  # Shrimp
+            reward = calculate_reward(50, stats["level"])
+            user_balances[user_id] += reward
+            message_text = f"You bought {item_name} and gained +{reward} AICAT tokens! New balance: {user_balances[user_id]}"
+
+        elif item_number == 7:  # Valeriana
+            import random
+            effect = random.choice(["good", "bad", "nothing"])
+            if effect == "good":
+                bonus = calculate_reward(100, stats["level"])
+                user_balances[user_id] += bonus
+                message_text = f"The valerian made the cat VERY happy! +{bonus} AICAT tokens! New balance: {user_balances[user_id]}"
+            elif effect == "bad":
+                penalty = 50
+                user_balances[user_id] = max(user_balances[user_id] - penalty,
+                                             0)
+                message_text = f"The valerian made the cat angry! -{penalty} AICAT tokens! New balance: {user_balances[user_id]}"
+            else:
+                message_text = "The valerian had no effect. Cat is sleeping peacefully..."
+        else:
+            message_text = f"Congratulations! You bought {item_name}. New balance: {user_balances[user_id]} AICAT tokens."
+    else:
+        message_text = "Not enough AICAT tokens to buy this item. Keep playing to earn more!"
+
+    bot.reply_to(message, message_text)
+
+
+# Обработка кнопок покупки
+@bot.callback_query_handler(func=lambda call: call.data.startswith('buy_'))
+def handle_buy_callback(call):
+    print("Кнопка нажата")
+    item_number = int(call.data.split('_')[1])
+    user_id = call.from_user.id
+    stats = get_user_stats(user_id)
+    add_experience(user_id, 8)
+    balance = user_balances.get(user_id, 0)
+
+    items = {
+        1: ("Catnip Toy", 50),
+        2: ("Scratching Post", 100),
+        3: ("Royal Cat Throne", 500),
+        4: ("Fish", 50),
+        5: ("Meat", 100),
+        6: ("Shrimp", 200),
+        7: ("Catnip (Valeriana)", 150)
+    }
+
+    if item_number not in items:
+        bot.answer_callback_query(call.id, "Invalid item.")
+        return
+
+    item_name, price = items[item_number]
+    if balance >= price:
+        user_balances[user_id] = balance - price
+
+        if item_number == 4:  # Fish
+            reward = calculate_reward(10, stats["level"])
+            user_balances[user_id] += reward
+            message = f"You bought {item_name} and gained +{reward} AICAT tokens! New balance: {user_balances[user_id]}"
+        elif item_number == 5:  # Meat
+            reward = calculate_reward(20, stats["level"])
+            user_balances[user_id] += reward
+            message = f"You bought {item_name} and gained +{reward} AICAT tokens! New balance: {user_balances[user_id]}"
+        elif item_number == 6:  # Shrimp
+            reward = calculate_reward(50, stats["level"])
+            user_balances[user_id] += reward
+            message = f"You bought {item_name} and gained +{reward} AICAT tokens! New balance: {user_balances[user_id]}"
+        elif item_number == 7:  # Valeriana
+            import random
+            effect = random.choice(["good", "bad", "nothing"])
+            if effect == "good":
+                bonus = calculate_reward(100, stats["level"])
+                user_balances[user_id] += bonus
+                message = f"The valerian made the cat VERY happy! +{bonus} AICAT tokens! New balance: {user_balances[user_id]}"
+            elif effect == "bad":
+                penalty = 50
+                user_balances[user_id] = max(user_balances[user_id] - penalty,
+                                             0)
+                message = f"The valerian made the cat angry! -{penalty} AICAT tokens! New balance: {user_balances[user_id]}"
+            else:
+                message = "The valerian had no effect. Cat is sleeping peacefully..."
+        else:
+            message = f"Congratulations! You bought {item_name}. New balance: {user_balances[user_id]} AICAT tokens."
+    else:
+        message = "Not enough AICAT tokens to buy this item. Keep playing to earn more!"
+
+    bot.answer_callback_query(call.id)
+    bot.send_message(call.message.chat.id, message)
+
+
+# Запуск сервера для поддержки активности на Replit
+@server.route('/')
+def home():
+    return "Bot is running!"
+
+
+# Запуск бота
+def run_bot():
+    print("Бот запущен!")
+    bot.infinity_polling()
+
+
+# Для Replit
+def run_server():
+    server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
+
+
+import threading
+
+if __name__ == "__main__":
+    keep_alive()
+    threading.Thread(target=run_bot).start()
+    run_server()
