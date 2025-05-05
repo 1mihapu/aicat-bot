@@ -529,6 +529,7 @@ def run_server():
 
 
 if __name__ == "__main__":
-    keep_alive()
-    threading.Thread(target=run_bot).start()
-    run_server()
+    print("Бот запущен!")
+    bot.remove_webhook()
+    bot.infinity_polling()
+
