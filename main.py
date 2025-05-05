@@ -53,27 +53,25 @@ def calculate_reward(base_reward, level):
     return int(base_reward * multiplier)
 
 
-# Команда старт
 from telebot import types
-
 
 @bot.message_handler(commands=['start'])
 def start(message):
     try:
         print(f"User {message.from_user.id} started the bot")
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        btn1 = types.KeyboardButton('🎁 /capsule')
-        btn2 = types.KeyboardButton('🐾 /pet')
-        btn3 = types.KeyboardButton('😺 /mood')
-        btn4 = types.KeyboardButton('🎤 /meow')
-        btn5 = types.KeyboardButton('💰 /balance')
-        btn6 = types.KeyboardButton('🎯 /bonus')
-        btn7 = types.KeyboardButton('🛍️ /shop')
-        btn8 = types.KeyboardButton('📊 /stats')
-        btn9 = types.KeyboardButton('📆 /daily')
-        btn10 = types.KeyboardButton('ℹ️ /help')
-
-        markup.add(btn1, btn2, btn3, btn4, btn5, btn6, btn7, btn8, btn9, btn10)
+        markup.add(
+            types.KeyboardButton('🎁 /capsule'),
+            types.KeyboardButton('🐾 /pet'),
+            types.KeyboardButton('😺 /mood'),
+            types.KeyboardButton('🎤 /meow'),
+            types.KeyboardButton('💰 /balance'),
+            types.KeyboardButton('🎯 /bonus'),
+            types.KeyboardButton('🛍️ /shop'),
+            types.KeyboardButton('📊 /stats'),
+            types.KeyboardButton('📆 /daily'),
+            types.KeyboardButton('ℹ️ /help'),
+        )
 
         user_id = message.from_user.id
         if user_id not in user_balances:
@@ -93,9 +91,25 @@ def start(message):
             "📊 /stats – View your XP and level.\n"
             "📆 /daily – Claim your daily reward.\n"
             "ℹ️ /help – Show this help menu anytime.",
-            reply_markup=markup)
+            reply_markup=markup
+        )
     except Exception as e:
         print(f"⚠️ Error in /start: {e}")
+
+# 🎯 Универсальный обработчик команд с эмодзи
+@bot.message_handler(func=lambda message: message.text and '/' in message.text)
+def handle_emoji_command(message):
+    clean_text = message.text.split()[-1]  # Получаем только /команду без эмодзи
+    bot.process_new_messages([types.Message(
+        message_id=message.message_id,
+        from_user=message.from_user,
+        chat=message.chat,
+        date=message.date,
+        content_type='text',
+        options={},
+        json_string='',
+        text=clean_text
+    )])
 
 
 @bot.message_handler(commands=['help'])
