@@ -432,6 +432,8 @@ def buy(message):
 # Обработка кнопок покупки
 @bot.callback_query_handler(func=lambda call: call.data.startswith('buy_'))
 def handle_buy_callback(call):
+        print("Callback triggered:", call.data)
+
     try:
         print(f"User {call.from_user.id} clicked button {call.data}")
         item_number = int(call.data.split('_')[1])
