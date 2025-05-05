@@ -432,7 +432,7 @@ def buy(message):
 # Обработка кнопок покупки
 @bot.callback_query_handler(func=lambda call: call.data.startswith('buy_'))
 def handle_buy_callback(call):
-        print("Callback triggered:", call.data)
+    print("Callback triggered:", call.data)
 
     try:
         print(f"User {call.from_user.id} clicked button {call.data}")
@@ -460,19 +460,19 @@ def handle_buy_callback(call):
         if balance >= price:
             user_balances[user_id] = balance - price
 
-            if item_number == 4:  # Fish
+            if item_number == 4:
                 reward = calculate_reward(10, stats["level"])
                 user_balances[user_id] += reward
                 message = f"You bought {item_name} and gained +{reward} AICAT tokens! New balance: {user_balances[user_id]}"
-            elif item_number == 5:  # Meat
+            elif item_number == 5:
                 reward = calculate_reward(20, stats["level"])
                 user_balances[user_id] += reward
                 message = f"You bought {item_name} and gained +{reward} AICAT tokens! New balance: {user_balances[user_id]}"
-            elif item_number == 6:  # Shrimp
+            elif item_number == 6:
                 reward = calculate_reward(50, stats["level"])
                 user_balances[user_id] += reward
                 message = f"You bought {item_name} and gained +{reward} AICAT tokens! New balance: {user_balances[user_id]}"
-            elif item_number == 7:  # Valeriana
+            elif item_number == 7:
                 effect = random.choice(["good", "bad", "nothing"])
                 if effect == "good":
                     bonus = calculate_reward(100, stats["level"])
@@ -480,8 +480,7 @@ def handle_buy_callback(call):
                     message = f"The valerian made the cat VERY happy! +{bonus} AICAT tokens! New balance: {user_balances[user_id]}"
                 elif effect == "bad":
                     penalty = 50
-                    user_balances[user_id] = max(
-                        user_balances[user_id] - penalty, 0)
+                    user_balances[user_id] = max(user_balances[user_id] - penalty, 0)
                     message = f"The valerian made the cat angry! -{penalty} AICAT tokens! New balance: {user_balances[user_id]}"
                 else:
                     message = "The valerian had no effect. Cat is sleeping peacefully..."
