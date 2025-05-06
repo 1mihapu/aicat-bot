@@ -2,8 +2,6 @@ import telebot
 import random
 import os
 import threading
-from flask import Flask
-from keep_alive import keep_alive
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
 user_balances = {}
@@ -13,7 +11,6 @@ user_stats = {}  # Формат: {user_id: {"level": 1, "xp": 0}}
 TOKEN = '7613886086:AAH0cAW5ADaFpFwSrFdQVpvLKEYJ-oXy8fo'
 
 bot = telebot.TeleBot(TOKEN)
-server = Flask(__name__)
 
 # Список мемов и фраз кота
 memes = [
@@ -511,25 +508,6 @@ def handle_buy_callback(call):
         bot.answer_callback_query(call.id, "Oops! Something went wrong.")
 
 
-# Запуск сервера для поддержки активности на Replit
-@server.route('/')
-def home():
-    return "Bot is running!"
-
-
-# Запуск бота
-def run_bot():
-    print("Бот запущен!")
-    bot.infinity_polling()
-
-
-# Для Replit
-def run_server():
-    server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
-
-
 if __name__ == "__main__":
-    print("Бот запущен!")
-    bot.remove_webhook()
     bot.infinity_polling()
 
