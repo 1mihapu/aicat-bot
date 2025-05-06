@@ -10,7 +10,7 @@ user_balances = {}
 user_stats = {}  # Формат: {user_id: {"level": 1, "xp": 0}}
 
 # Ваш токен от BotFather сюда:
-TOKEN = '7128507490:AAFNSJpRFwLF8qiKAWfmF8vvUwd_A3avTvc'
+TOKEN = '7613886086:AAH0cAW5ADaFpFwSrFdQVpvLKEYJ-oXy8fo'
 
 bot = telebot.TeleBot(TOKEN)
 server = Flask(__name__)
