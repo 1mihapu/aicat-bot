@@ -514,5 +514,14 @@ def handle_buy_callback(call):
         bot.answer_callback_query(call.id, "Oops! Something went wrong.")
 
 
+import time
+
 if __name__ == "__main__":
-    bot.infinity_polling()
+    while True:
+        try:
+            print("Starting polling...")
+            bot.infinity_polling()
+        except Exception as e:
+            print(f"Polling error: {e}")
+            time.sleep(5)
+
