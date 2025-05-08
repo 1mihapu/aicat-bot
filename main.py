@@ -1,15 +1,20 @@
-print("AICAT Bot is starting...")
 import telebot
 import random
 import os
 import threading
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
+print("AICAT Bot is starting...")
+
 user_balances = {}
 user_stats = {}  # Формат: {user_id: {"level": 1, "xp": 0}}
 
 # Ваш токен от BotFather сюда:
 TOKEN = '7613886086:AAH0cAW5ADaFpFwSrFdQVpvLKEYJ-oXy8fo'
+
+if not TOKEN:
+    print("⚠️ ERROR: TOKEN is not set.")
+    exit(1)
 
 bot = telebot.TeleBot(TOKEN)
 
