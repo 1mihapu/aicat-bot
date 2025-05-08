@@ -1,3 +1,4 @@
+print("AICAT Bot is starting...")
 import telebot
 import random
 import os
